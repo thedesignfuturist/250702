@@ -1,0 +1,17 @@
+{
+    "mcpServers": {
+      "supabase-mcp": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@supabase-community/supabase-mcp",
+          "--key",
+          "0f519ae8-fdf8-4362-8c2d-c6a3cb0a34e3",
+          "--profile",
+          "jittery-boa-0kHjK0"
+        ]
+      }
+    }
+  }
