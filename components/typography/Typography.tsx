@@ -1,3 +1,10 @@
+"use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export const dynamic = "force-dynamic";
+
+import { useState, useEffect } from "react";
+import { createClient } from '@supabase/supabase-js';
+
 export function TypographyH1() {
   return (
     <h1 className="scroll-m-20 text-center text-4xl font-extrabold tracking-tight text-balance">

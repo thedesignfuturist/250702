@@ -1,10 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 // images 테이블 목록 불러오기
 export async function fetchImages(supabase: SupabaseClient) {
   const { data, error } = await supabase
