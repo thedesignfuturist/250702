@@ -5,31 +5,6 @@ import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-function useSupabaseImages() {
-  const [images, setImages] = useState<string[]>([]);
-  useEffect(() => {
-    async function fetchImages() {
-      const { data } = await supabase.storage.from("images").list();
-      if (data) {
-        setImages(
-          data
-            .filter((f) => f.name)
-            .map((f) =>
-              supabase.storage.from("images").getPublicUrl(f.name).data.publicUrl
-            )
-        );
-      }
-    }
-    fetchImages();
-  }, []);
-  return images;
-}
-
 // Fibonacci lattice로 구 표면에 균일 분포 좌표 생성 useMemo로 고정
 const useSpherePositions = (count: number, radius: number) => useMemo(() => {
   const positions: [number, number, number][] = [];
@@ -137,4 +112,29 @@ export default function SphereStickers() {
       </Canvas>
     </div>
   );
+}
+
+function useSupabaseImages() {
+  const [images, setImages] = useState<string[]>([]);
+  useEffect(() => {
+    // 클라이언트에서만 supabase 생성
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    async function fetchImages() {
+      const { data } = await supabase.storage.from("images").list();
+      if (data) {
+        setImages(
+          data
+            .filter((f) => f.name)
+            .map((f) =>
+              supabase.storage.from("images").getPublicUrl(f.name).data.publicUrl
+            )
+        );
+      }
+    }
+    fetchImages();
+  }, []);
+  return images;
 } 
