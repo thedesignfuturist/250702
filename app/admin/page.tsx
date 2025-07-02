@@ -19,11 +19,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 const ADMIN_PASSWORD = "changeme123"; // 원하는 비밀번호로 변경
 
 // 타입 정의 추가
@@ -50,6 +45,12 @@ export default function AdminPage() {
   const [form, setForm] = useState<any>({ name: "", description: "", date: "", category: "", file: null });
   const [detailFiles, setDetailFiles] = useState<File[]>([]);
   const [detailImages, setDetailImages] = useState<{ id: string; image_id: string; file_name: string; order?: number; created_at: string }[]>([]);
+
+  // supabase 클라이언트 생성은 함수 내부에서!
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   // 목록 불러오기
   async function loadImages() {
