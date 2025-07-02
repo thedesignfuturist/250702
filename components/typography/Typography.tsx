@@ -49,10 +49,10 @@ export function TypographyTable() {
         <thead>
           <tr className="even:bg-muted m-0 border-t p-0">
             <th className="border px-4 py-2 text-left font-bold [&[align=center]]:text-center [&[align=right]]:text-right">
-              King's Treasury
+              King&apos;s Treasury
             </th>
             <th className="border px-4 py-2 text-left font-bold [&[align=center]]:text-center [&[align=right]]:text-right">
-              People's happiness
+              People&apos;s happiness
             </th>
           </tr>
         </thead>
