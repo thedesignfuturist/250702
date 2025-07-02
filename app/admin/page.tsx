@@ -12,13 +12,22 @@ import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction
 } from "@/components/ui/alert-dialog";
 import { fetchImages, addImage, updateImage, deleteImage, fetchImageDetails, addImageDetail, deleteImageDetail } from "@/lib/supabase";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+const ADMIN_PASSWORD = "changeme123"; // 원하는 비밀번호로 변경
+
 export default function AdminPage() {
+  // 모든 훅 선언 (최상단)
+  const [authed, setAuthed] = useState(false);
+  const [pw, setPw] = useState("");
+  const [pwError, setPwError] = useState("");
   const [images, setImages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -44,6 +53,36 @@ export default function AdminPage() {
   useEffect(() => {
     loadImages();
   }, []);
+
+  // 조건부 렌더링 (훅 선언 이후에만)
+  if (!authed) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <h2 className="mb-4 text-xl font-bold">관리자 비밀번호 입력</h2>
+        <Input
+          type="password"
+          value={pw}
+          onChange={e => setPw(e.target.value)}
+          className="mb-2 w-64"
+          placeholder="비밀번호"
+        />
+        <Button
+          className="w-64"
+          onClick={() => {
+            if (pw === ADMIN_PASSWORD) {
+              setAuthed(true);
+              setPwError("");
+            } else {
+              setPwError("비밀번호가 틀렸습니다.");
+            }
+          }}
+        >
+          확인
+        </Button>
+        {pwError && <div className="text-red-500 mt-2">{pwError}</div>}
+      </div>
+    );
+  }
 
   // 등록/수정 모달 열기
   function openModal(image?: any) {
@@ -207,35 +246,40 @@ export default function AdminPage() {
             <DialogTitle>{editTarget ? "이미지 수정" : "이미지 등록"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <input
+            <Label htmlFor="name">이름</Label>
+            <Input
+              id="name"
               type="text"
               placeholder="이름"
-              className="input input-bordered w-full"
               value={form.name}
               onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))}
             />
-            <textarea
+            <Label htmlFor="description">상세설명</Label>
+            <Textarea
+              id="description"
               placeholder="상세설명"
-              className="input input-bordered w-full"
               value={form.description}
               onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))}
             />
-            <input
+            <Label htmlFor="date">날짜</Label>
+            <Input
+              id="date"
               type="date"
-              className="input input-bordered w-full"
               value={form.date}
               onChange={e => setForm((f: any) => ({ ...f, date: e.target.value }))}
             />
-            <input
+            <Label htmlFor="category">카테고리</Label>
+            <Input
+              id="category"
               type="text"
               placeholder="카테고리"
-              className="input input-bordered w-full"
               value={form.category}
               onChange={e => setForm((f: any) => ({ ...f, category: e.target.value }))}
             />
             <div>
-              <div className="mb-1 font-medium">대표 이미지</div>
-              <input
+              <Label htmlFor="main-image">대표 이미지</Label>
+              <Input
+                id="main-image"
                 type="file"
                 accept="image/*"
                 onChange={e => setForm((f: any) => ({ ...f, file: e.target.files?.[0] }))}
@@ -245,8 +289,9 @@ export default function AdminPage() {
               )}
             </div>
             <div>
-              <div className="mb-1 font-medium">상세 이미지 (여러 장)</div>
-              <input
+              <Label htmlFor="detail-images">상세 이미지 (여러 장)</Label>
+              <Input
+                id="detail-images"
                 type="file"
                 accept="image/*"
                 multiple
