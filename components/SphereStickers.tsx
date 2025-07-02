@@ -1,12 +1,9 @@
 "use client";
-import React, { useRef, useEffect, useMemo, useState, useLayoutEffect, Suspense } from 'react';
+import React, { useRef, useEffect, useMemo, useState, Suspense } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { createClient } from '@supabase/supabase-js';
-
-const IMAGE_COUNT = 50;
-const IMAGE_PATH = '/9208793A-C057-403B-BC02-AB6F666A5BB5.JPG';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,9 +30,6 @@ function useSupabaseImages() {
   return images;
 }
 
-// 이미지 파일명 배열 useMemo로 고정
-const useImageFiles = () => useMemo(() => Array.from({ length: IMAGE_COUNT }, () => IMAGE_PATH), []);
-
 // Fibonacci lattice로 구 표면에 균일 분포 좌표 생성 useMemo로 고정
 const useSpherePositions = (count: number, radius: number) => useMemo(() => {
   const positions: [number, number, number][] = [];
@@ -51,14 +45,6 @@ const useSpherePositions = (count: number, radius: number) => useMemo(() => {
   }
   return positions;
 }, [count, radius]);
-
-// 각 위치의 구면 좌표(θ, φ) 계산
-function cartesianToSpherical([x, y, z]: [number, number, number]): { theta: number; phi: number } {
-  const r = Math.sqrt(x * x + y * y + z * z);
-  const theta = Math.acos(y / r); // polar angle
-  const phi = Math.atan2(z, x);   // azimuthal angle
-  return { theta, phi };
-}
 
 // 스티커(이미지) 컴포넌트: 작은 구 패치(조각)에 이미지를 맵핑
 function Sticker({ url, position, size }: { url: string; position: [number, number, number]; size: number }) {

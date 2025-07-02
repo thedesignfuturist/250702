@@ -1,12 +1,12 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from '@supabase/supabase-js';
 import {
   Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableCaption
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose
 } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction
@@ -23,18 +23,30 @@ const supabase = createClient(
 
 const ADMIN_PASSWORD = "changeme123"; // 원하는 비밀번호로 변경
 
+// 타입 정의 추가
+interface ImageRow {
+  id: string;
+  name: string;
+  description: string;
+  date: string | null;
+  category: string;
+  file_name: string;
+  created_at: string;
+}
+
 export default function AdminPage() {
   // 모든 훅 선언 (최상단)
   const [authed, setAuthed] = useState(false);
   const [pw, setPw] = useState("");
   const [pwError, setPwError] = useState("");
-  const [images, setImages] = useState<any[]>([]);
+  const [images, setImages] = useState<ImageRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<any | null>(null);
+  const [editTarget, setEditTarget] = useState<ImageRow | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [form, setForm] = useState<any>({ name: "", description: "", date: "", category: "", file: null });
   const [detailFiles, setDetailFiles] = useState<File[]>([]);
-  const [detailImages, setDetailImages] = useState<any[]>([]);
+  const [detailImages, setDetailImages] = useState<{ id: string; image_id: string; file_name: string; order?: number; created_at: string }[]>([]);
 
   // 목록 불러오기
   async function loadImages() {
@@ -85,6 +97,7 @@ export default function AdminPage() {
   }
 
   // 등록/수정 모달 열기
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function openModal(image?: any) {
     if (image) {
       setEditTarget(image);
@@ -106,6 +119,7 @@ export default function AdminPage() {
   }
 
   // 등록/수정 저장
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function handleSave() {
     setLoading(true);
     try {
@@ -123,7 +137,7 @@ export default function AdminPage() {
       if (editTarget) {
         imageRow = await updateImage(editTarget.id, { name: form.name, description: form.description, date: safeDate, category: form.category, file_name });
       } else {
-        imageRow = await addImage({ name: form.name, description: form.description, date: safeDate, category: form.category, file_name });
+        imageRow = await addImage({ name: form.name, description: form.description, date: safeDate, category: form.category, file_name: file_name ?? "" });
       }
       // 상세 이미지 업로드
       for (const f of detailFiles) {
@@ -144,7 +158,7 @@ export default function AdminPage() {
   }
 
   // 삭제
-  async function handleDelete(image: any) {
+  async function handleDelete(image: ImageRow) {
     setLoading(true);
     try {
       await deleteImage(image.id);
@@ -157,7 +171,8 @@ export default function AdminPage() {
   }
 
   // 상세 이미지 삭제
-  async function handleDeleteDetail(id: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function handleDeleteDetail(id: any) {
     setLoading(true);
     try {
       await deleteImageDetail(id);
@@ -206,7 +221,7 @@ export default function AdminPage() {
               <TableCell>{img.category}</TableCell>
               <TableCell>
                 <Button size="sm" variant="outline" onClick={() => { loadDetailImages(img.id); openModal(img); }}>
-                  {img.detail_count ?? "상세 보기"}
+                  상세 보기
                 </Button>
               </TableCell>
               <TableCell>
