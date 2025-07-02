@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -6,7 +6,7 @@ const supabase = createClient(
 );
 
 // images 테이블 목록 불러오기
-export async function fetchImages() {
+export async function fetchImages(supabase: SupabaseClient) {
   const { data, error } = await supabase
     .from('images')
     .select('id, name, description, date, category, file_name, created_at')
@@ -16,7 +16,7 @@ export async function fetchImages() {
 }
 
 // image_details 테이블 목록 (특정 이미지의 상세 이미지들)
-export async function fetchImageDetails(image_id: string) {
+export async function fetchImageDetails(supabase: SupabaseClient, image_id: string) {
   const { data, error } = await supabase
     .from('image_details')
     .select('id, image_id, file_name, "order", created_at')
@@ -27,7 +27,7 @@ export async function fetchImageDetails(image_id: string) {
 }
 
 // 이미지 추가
-export async function addImage(image: {
+export async function addImage(supabase: SupabaseClient, image: {
   file_name: string;
   name: string;
   description: string;
@@ -43,7 +43,7 @@ export async function addImage(image: {
 }
 
 // 이미지 수정
-export async function updateImage(id: string, updates: Partial<{
+export async function updateImage(supabase: SupabaseClient, id: string, updates: Partial<{
   file_name: string;
   name: string;
   description: string;
@@ -60,7 +60,7 @@ export async function updateImage(id: string, updates: Partial<{
 }
 
 // 이미지 삭제
-export async function deleteImage(id: string) {
+export async function deleteImage(supabase: SupabaseClient, id: string) {
   const { error } = await supabase
     .from('images')
     .delete()
@@ -69,7 +69,7 @@ export async function deleteImage(id: string) {
 }
 
 // 상세 이미지 추가
-export async function addImageDetail(detail: {
+export async function addImageDetail(supabase: SupabaseClient, detail: {
   image_id: string;
   file_name: string;
   order?: number;
@@ -83,7 +83,7 @@ export async function addImageDetail(detail: {
 }
 
 // 상세 이미지 삭제
-export async function deleteImageDetail(id: string) {
+export async function deleteImageDetail(supabase: SupabaseClient, id: string) {
   const { error } = await supabase
     .from('image_details')
     .delete()

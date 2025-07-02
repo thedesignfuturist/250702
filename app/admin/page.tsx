@@ -46,28 +46,26 @@ export default function AdminPage() {
   const [detailFiles, setDetailFiles] = useState<File[]>([]);
   const [detailImages, setDetailImages] = useState<{ id: string; image_id: string; file_name: string; order?: number; created_at: string }[]>([]);
 
-  // supabase 클라이언트 생성은 함수 내부에서!
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
   // 목록 불러오기
-  async function loadImages() {
+  async function loadImages(supabase: any) {
     setLoading(true);
-    const data = await fetchImages();
+    const data = await fetchImages(supabase);
     setImages(data);
     setLoading(false);
   }
 
   // 상세 이미지 불러오기
-  async function loadDetailImages(image_id: string) {
-    const data = await fetchImageDetails(image_id);
+  async function loadDetailImages(supabase: any, image_id: string) {
+    const data = await fetchImageDetails(supabase, image_id);
     setDetailImages(data);
   }
 
   useEffect(() => {
-    loadImages();
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    loadImages(supabase);
   }, []);
 
   // 조건부 렌더링 (훅 선언 이후에만)
@@ -112,7 +110,10 @@ export default function AdminPage() {
         category: image.category,
         file: null,
       });
-      loadDetailImages(image.id);
+      loadDetailImages(createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      ), image.id);
     } else {
       setEditTarget(null);
       setForm({ name: "", description: "", date: "", category: "", file: null });
@@ -131,29 +132,36 @@ export default function AdminPage() {
       // 대표 이미지 업로드
       if (form.file) {
         const filename = `${Date.now()}-${form.file.name}`;
-        const { error: uploadError } = await supabase.storage.from("images").upload(filename, form.file);
+        const { error: uploadError } = await createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        ).storage.from("images").upload(filename, form.file);
         if (uploadError) throw uploadError;
         file_name = filename;
       }
       // date가 공란이면 undefined로 변환
       const safeDate = form.date === "" ? undefined : form.date;
       let imageRow;
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
       if (editTarget) {
-        imageRow = await updateImage(editTarget.id, { name: form.name, description: form.description, date: safeDate, category: form.category, file_name });
+        imageRow = await updateImage(supabase, editTarget.id, { name: form.name, description: form.description, date: safeDate, category: form.category, file_name });
       } else {
-        imageRow = await addImage({ name: form.name, description: form.description, date: safeDate, category: form.category, file_name: file_name ?? "" });
+        imageRow = await addImage(supabase, { name: form.name, description: form.description, date: safeDate, category: form.category, file_name: file_name ?? "" });
       }
       // 상세 이미지 업로드
       for (const f of detailFiles) {
         const filename = `${Date.now()}-${f.name}`;
         const { error: uploadError } = await supabase.storage.from("images").upload(filename, f);
         if (uploadError) throw uploadError;
-        await addImageDetail({ image_id: imageRow.id, file_name: filename });
+        await addImageDetail(supabase, { image_id: imageRow.id, file_name: filename });
       }
       setModalOpen(false);
       setForm({ name: "", description: "", date: "", category: "", file: null });
       setDetailFiles([]);
-      loadImages();
+      loadImages(supabase);
     } catch (error: any) {
       alert('에러: ' + (error?.message || JSON.stringify(error)));
       console.error('에러:', error);
@@ -165,8 +173,14 @@ export default function AdminPage() {
   async function handleDelete(image: ImageRow) {
     setLoading(true);
     try {
-      await deleteImage(image.id);
-      loadImages();
+      await deleteImage(createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      ), image.id);
+      loadImages(createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      ));
     } catch (error: any) {
       alert('에러: ' + (error?.message || JSON.stringify(error)));
       console.error('에러:', error);
@@ -179,8 +193,14 @@ export default function AdminPage() {
   async function handleDeleteDetail(id: any) {
     setLoading(true);
     try {
-      await deleteImageDetail(id);
-      if (editTarget) loadDetailImages(editTarget.id);
+      await deleteImageDetail(createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      ), id);
+      if (editTarget) loadDetailImages(createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      ), editTarget.id);
     } catch (error: any) {
       alert('에러: ' + (error?.message || JSON.stringify(error)));
       console.error('에러:', error);
@@ -216,7 +236,10 @@ export default function AdminPage() {
             <TableRow key={img.id}>
               <TableCell>
                 {img.file_name && (
-                  <img src={supabase.storage.from("images").getPublicUrl(img.file_name).data.publicUrl} alt={img.name} className="w-16 h-16 object-cover rounded" />
+                  <img src={createClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                  ).storage.from("images").getPublicUrl(img.file_name).data.publicUrl} alt={img.name} className="w-16 h-16 object-cover rounded" />
                 )}
               </TableCell>
               <TableCell>{img.name}</TableCell>
@@ -224,7 +247,10 @@ export default function AdminPage() {
               <TableCell>{img.date}</TableCell>
               <TableCell>{img.category}</TableCell>
               <TableCell>
-                <Button size="sm" variant="outline" onClick={() => { loadDetailImages(img.id); openModal(img); }}>
+                <Button size="sm" variant="outline" onClick={() => { loadDetailImages(createClient(
+                  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                ), img.id); openModal(img); }}>
                   상세 보기
                 </Button>
               </TableCell>
@@ -304,7 +330,10 @@ export default function AdminPage() {
                 onChange={e => setForm((f: any) => ({ ...f, file: e.target.files?.[0] }))}
               />
               {editTarget?.file_name && (
-                <img src={supabase.storage.from("images").getPublicUrl(editTarget.file_name).data.publicUrl} alt="대표" className="w-16 h-16 mt-2 object-cover rounded" />
+                <img src={createClient(
+                  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                ).storage.from("images").getPublicUrl(editTarget.file_name).data.publicUrl} alt="대표" className="w-16 h-16 mt-2 object-cover rounded" />
               )}
             </div>
             <div>
@@ -319,7 +348,10 @@ export default function AdminPage() {
               <div className="flex flex-wrap gap-2 mt-2">
                 {detailImages.map((d) => (
                   <div key={d.id} className="relative">
-                    <img src={supabase.storage.from("images").getPublicUrl(d.file_name).data.publicUrl} alt="상세" className="w-16 h-16 object-cover rounded" />
+                    <img src={createClient(
+                      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                    ).storage.from("images").getPublicUrl(d.file_name).data.publicUrl} alt="상세" className="w-16 h-16 object-cover rounded" />
                     <Button size="sm" variant="destructive" className="absolute top-0 right-0" onClick={() => handleDeleteDetail(d.id)}>×</Button>
                   </div>
                 ))}
