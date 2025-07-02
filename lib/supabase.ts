@@ -89,6 +89,4 @@ export async function deleteImageDetail(supabase: SupabaseClient, id: string) {
     .delete()
     .eq('id', id);
   if (error) throw error;
-}
-
-export default supabase; 
+} 
