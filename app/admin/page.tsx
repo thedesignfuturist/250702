@@ -33,7 +33,7 @@ interface ImageRow {
 }
 
 export default function AdminPage() {
-  // 모든 훅 선언 (최상단)
+  const [isClient, setIsClient] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [pw, setPw] = useState("");
   const [pwError, setPwError] = useState("");
@@ -43,28 +43,17 @@ export default function AdminPage() {
   const [editTarget, setEditTarget] = useState<ImageRow | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [form, setForm] = useState<any>({ name: "", description: "", date: "", category: "", file: null });
-  const [detailFiles, setDetailFiles] = useState<File[]>([]);
+  const [detailFiles, setDetailFiles] = useState<{file: File, status: 'uploading' | 'done' | 'error', url?: string, supabaseName?: string}[]>([]);
   const [detailImages, setDetailImages] = useState<{ id: string; image_id: string; file_name: string; order?: number; created_at: string }[]>([]);
   // 대표 이미지 URL을 관리하는 state 추가
   const [mainImageUrls, setMainImageUrls] = useState<{ [id: string]: string }>({});
   // 상세 이미지 URL을 관리하는 state 추가
   const [detailImageUrls, setDetailImageUrls] = useState<{ [id: string]: string }>({});
 
-  // 목록 불러오기
-  async function loadImages(supabase: any) {
-    setLoading(true);
-    const data = await fetchImages(supabase);
-    setImages(data);
-    setLoading(false);
-  }
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
-  // 상세 이미지 불러오기
-  async function loadDetailImages(supabase: any, image_id: string) {
-    const data = await fetchImageDetails(supabase, image_id);
-    setDetailImages(data);
-  }
-
-  // Supabase 이미지 URL 생성 함수
   const getImageUrl = useCallback((file_name: string) => {
     if (!file_name) return "";
     const supabase = createClient(
@@ -74,7 +63,6 @@ export default function AdminPage() {
     return supabase.storage.from("images").getPublicUrl(file_name).data.publicUrl;
   }, []);
 
-  // 대표 이미지 URL을 images가 바뀔 때마다 갱신
   useEffect(() => {
     const urls: { [id: string]: string } = {};
     images.forEach((img) => {
@@ -85,7 +73,6 @@ export default function AdminPage() {
     setMainImageUrls(urls);
   }, [images, getImageUrl]);
 
-  // 상세 이미지 URL을 detailImages가 바뀔 때마다 갱신
   useEffect(() => {
     const urls: { [id: string]: string } = {};
     detailImages.forEach((d) => {
@@ -103,6 +90,23 @@ export default function AdminPage() {
     );
     loadImages(supabase);
   }, []);
+
+  // 목록 불러오기
+  async function loadImages(supabase: any) {
+    setLoading(true);
+    const data = await fetchImages(supabase);
+    setImages(data);
+    setLoading(false);
+  }
+
+  // 상세 이미지 불러오기
+  async function loadDetailImages(supabase: any, image_id: string) {
+    const data = await fetchImageDetails(supabase, image_id);
+    setDetailImages(data);
+  }
+
+  // SSR에서는 항상 <div></div>만 반환
+  if (!isClient) return <div></div>;
 
   // 조건부 렌더링 (훅 선언 이후에만)
   if (!authed) {
@@ -188,11 +192,10 @@ export default function AdminPage() {
         imageRow = await addImage(supabase, { name: form.name, description: form.description, date: safeDate, category: form.category, file_name: file_name ?? "" });
       }
       // 상세 이미지 업로드
-      for (const f of detailFiles) {
-        const filename = `${Date.now()}-${f.name}`;
-        const { error: uploadError } = await supabase.storage.from("images").upload(filename, f);
-        if (uploadError) throw uploadError;
-        await addImageDetail(supabase, { image_id: imageRow.id, file_name: filename });
+      for (const df of detailFiles) {
+        if (df.status === 'done' && df.supabaseName) {
+          await addImageDetail(supabase, { image_id: imageRow.id, file_name: df.supabaseName as string });
+        }
       }
       setModalOpen(false);
       setForm({ name: "", description: "", date: "", category: "", file: null });
@@ -242,6 +245,46 @@ export default function AdminPage() {
       console.error('에러:', error);
     }
     setLoading(false);
+  }
+
+  // 파일 업로드 함수
+  async function uploadDetailFile(f: File) {
+    const filename = `${Date.now()}-${f.name}`;
+    setDetailFiles(prev => prev.map(df => df.file === f ? { ...df, status: 'uploading' } : df));
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const { error } = await supabase.storage.from("images").upload(filename, f);
+    if (error) {
+      setDetailFiles(prev => prev.map(df => df.file === f ? { ...df, status: 'error' } : df));
+    } else {
+      const url = supabase.storage.from("images").getPublicUrl(filename).data.publicUrl;
+      setDetailFiles(prev => prev.map(df => df.file === f ? { ...df, status: 'done', url, supabaseName: filename } : df));
+    }
+  }
+
+  // 파일 선택 시 즉시 업로드
+  function handleDetailFilesChange(files: FileList | null) {
+    if (!files) return;
+    const arr = Array.from(files);
+    setDetailFiles(prev => [
+      ...prev,
+      ...arr.map(f => ({ file: f, status: 'uploading' as const }))
+    ]);
+    arr.forEach(f => uploadDetailFile(f));
+  }
+
+  // 삭제 핸들러
+  async function handleDeleteUploadedImage(df: {file: File, status: string, url?: string, supabaseName?: string}) {
+    if (df.supabaseName) {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      await supabase.storage.from("images").remove([df.supabaseName]);
+    }
+    setDetailFiles(prev => prev.filter(f => f.file !== df.file));
   }
 
   return (
@@ -368,27 +411,50 @@ export default function AdminPage() {
             </div>
             <div>
               <Label htmlFor="detail-images">상세 이미지 (여러 장)</Label>
-              <Input
+              <input
                 id="detail-images"
                 type="file"
                 accept="image/*"
                 multiple
-                onChange={e => setDetailFiles(Array.from(e.target.files || []))}
+                style={{ display: 'none' }}
+                onChange={e => handleDetailFilesChange(e.target.files)}
               />
               <div className="flex flex-wrap gap-2 mt-2">
                 {detailImages.map((d) => (
-                  <div key={d.id} className="relative">
+                  <div key={d.id} className="relative group">
                     {detailImageUrls[d.id] && (
                       <img src={detailImageUrls[d.id]} alt="상세" className="w-16 h-16 object-cover rounded" />
                     )}
-                    <Button size="sm" variant="destructive" className="absolute top-0 right-0" onClick={() => handleDeleteDetail(d.id)}>×</Button>
+                    <Button size="sm" variant="destructive" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition" onClick={() => handleDeleteDetail(d.id)}>×</Button>
                   </div>
                 ))}
-                {detailFiles.map((f, i) => (
-                  <div key={i} className="relative">
-                    <img src={URL.createObjectURL(f)} alt="미리보기" className="w-16 h-16 object-cover rounded opacity-50" />
+                {detailFiles.map((df, i) => (
+                  <div key={i} className="relative group">
+                    {df.status === 'uploading' && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10">
+                        <div className="w-8 h-8 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    )}
+                    <img src={df.url || URL.createObjectURL(df.file)} alt="미리보기" className="w-16 h-16 object-cover rounded" />
+                    {df.status === 'done' && (
+                      <button
+                        className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-red-500 opacity-0 group-hover:opacity-100 transition"
+                        onClick={() => handleDeleteUploadedImage(df)}
+                        tabIndex={0}
+                        aria-label="이미지 삭제"
+                      >×</button>
+                    )}
                   </div>
                 ))}
+                <button
+                  type="button"
+                  className="w-16 h-16 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-3xl text-gray-400 hover:bg-gray-100 transition"
+                  onClick={() => document.getElementById('detail-images')?.click()}
+                  tabIndex={0}
+                  aria-label="이미지 추가"
+                >
+                  +
+                </button>
               </div>
             </div>
           </div>
