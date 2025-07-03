@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from '@supabase/supabase-js';
 import {
   Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableCaption
@@ -45,6 +45,10 @@ export default function AdminPage() {
   const [form, setForm] = useState<any>({ name: "", description: "", date: "", category: "", file: null });
   const [detailFiles, setDetailFiles] = useState<File[]>([]);
   const [detailImages, setDetailImages] = useState<{ id: string; image_id: string; file_name: string; order?: number; created_at: string }[]>([]);
+  // 대표 이미지 URL을 관리하는 state 추가
+  const [mainImageUrls, setMainImageUrls] = useState<{ [id: string]: string }>({});
+  // 상세 이미지 URL을 관리하는 state 추가
+  const [detailImageUrls, setDetailImageUrls] = useState<{ [id: string]: string }>({});
 
   // 목록 불러오기
   async function loadImages(supabase: any) {
@@ -59,6 +63,38 @@ export default function AdminPage() {
     const data = await fetchImageDetails(supabase, image_id);
     setDetailImages(data);
   }
+
+  // Supabase 이미지 URL 생성 함수
+  const getImageUrl = useCallback((file_name: string) => {
+    if (!file_name) return "";
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    return supabase.storage.from("images").getPublicUrl(file_name).data.publicUrl;
+  }, []);
+
+  // 대표 이미지 URL을 images가 바뀔 때마다 갱신
+  useEffect(() => {
+    const urls: { [id: string]: string } = {};
+    images.forEach((img) => {
+      if (img.file_name) {
+        urls[img.id] = getImageUrl(img.file_name);
+      }
+    });
+    setMainImageUrls(urls);
+  }, [images, getImageUrl]);
+
+  // 상세 이미지 URL을 detailImages가 바뀔 때마다 갱신
+  useEffect(() => {
+    const urls: { [id: string]: string } = {};
+    detailImages.forEach((d) => {
+      if (d.file_name) {
+        urls[d.id] = getImageUrl(d.file_name);
+      }
+    });
+    setDetailImageUrls(urls);
+  }, [detailImages, getImageUrl]);
 
   useEffect(() => {
     const supabase = createClient(
@@ -235,11 +271,8 @@ export default function AdminPage() {
           {images.map((img) => (
             <TableRow key={img.id}>
               <TableCell>
-                {img.file_name && (
-                  <img src={createClient(
-                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-                  ).storage.from("images").getPublicUrl(img.file_name).data.publicUrl} alt={img.name} className="w-16 h-16 object-cover rounded" />
+                {img.file_name && mainImageUrls[img.id] && (
+                  <img src={mainImageUrls[img.id]} alt={img.name} className="w-16 h-16 object-cover rounded" />
                 )}
               </TableCell>
               <TableCell>{img.name}</TableCell>
@@ -329,11 +362,8 @@ export default function AdminPage() {
                 accept="image/*"
                 onChange={e => setForm((f: any) => ({ ...f, file: e.target.files?.[0] }))}
               />
-              {editTarget?.file_name && (
-                <img src={createClient(
-                  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-                ).storage.from("images").getPublicUrl(editTarget.file_name).data.publicUrl} alt="대표" className="w-16 h-16 mt-2 object-cover rounded" />
+              {editTarget?.file_name && mainImageUrls[editTarget.id] && (
+                <img src={mainImageUrls[editTarget.id]} alt="대표" className="w-16 h-16 mt-2 object-cover rounded" />
               )}
             </div>
             <div>
@@ -348,10 +378,9 @@ export default function AdminPage() {
               <div className="flex flex-wrap gap-2 mt-2">
                 {detailImages.map((d) => (
                   <div key={d.id} className="relative">
-                    <img src={createClient(
-                      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-                    ).storage.from("images").getPublicUrl(d.file_name).data.publicUrl} alt="상세" className="w-16 h-16 object-cover rounded" />
+                    {detailImageUrls[d.id] && (
+                      <img src={detailImageUrls[d.id]} alt="상세" className="w-16 h-16 object-cover rounded" />
+                    )}
                     <Button size="sm" variant="destructive" className="absolute top-0 right-0" onClick={() => handleDeleteDetail(d.id)}>×</Button>
                   </div>
                 ))}
